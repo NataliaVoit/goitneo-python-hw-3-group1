@@ -95,7 +95,6 @@ class AddressBook(UserDict):
             if record.birthday:
                 birthday_date = datetime.strptime(record.birthday.value, "%d.%m.%Y")
                 birthday_date = birthday_date.replace(year=today.year)
-                print(birthday_date)
                 if today <= birthday_date < next_week:
                     day_week = birthday_date.strftime("%A")
                     if day_week in birthdays_next_week:
@@ -105,62 +104,113 @@ class AddressBook(UserDict):
         return birthdays_next_week
         
     
-if __name__ == "__main__":
+def input_error(func):
+    def inner(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ValueError:
+            return "Give me name and phone please."
+        except KeyError:
+            return "Contact not found."
+        except IndexError:
+            return "Invalid command arguments."
 
-    # Створення нової адресної книги
-    book = AddressBook()
+    return inner
 
-    # Створення запису для John
-    john_record = Record("John")
-    john_record.add_birthday("11.03.2010")
-    john_record.add_phone("1234567890")
-    john_record.add_phone("5555555555")
+def parse_input(user_input):
+    cmd, *args = user_input.split()
+    cmd = cmd.strip().lower()
+    return cmd, *args
 
-    # Додавання запису John до адресної книги
-    book.add_record(john_record)
+@input_error
+def add_contact(args, contacts: AddressBook):
+    name, phone = args
+    print(name, phone)
+    record_obj = Record(name)
+    record_obj.add_phone(phone)
+    contacts.add_record(record=record_obj)
+    return "Contact added."
 
-    # Створення та додавання нового запису для Jane
-    jane_record = Record("Jane")
-    jane_record.add_phone("9876543210")
-    jane_record.add_birthday("1.03.2005")
-    book.add_record(jane_record)
+@input_error
+def show_all(args, contacts):
+    if not contacts:
+        return "no contacts"
+    people = ""
+    for name, record in contacts.data.items():
+        people += f"{record}"
+    return people
 
-    # Виведення всіх записів у книзі
-    for name, record in book.data.items():
-        print(record)
+@input_error
+def change_contact(args, contacts: AddressBook):
+    name, old_phone, new_phone = args
+    record_obj = contacts.find(name)
+    if record_obj:
+        record_obj.edit_phone(old_phone, new_phone)
+        return "Contact updated"
+    return "phone not found"
 
-    # Знаходження та редагування телефону для John
-    john = book.find("John")
-    john.edit_phone("1234567890", "1112223333")
-
-    print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
-
-    # Пошук конкретного телефону у записі John
-    found_phone = john.find_phone("5555555555")
-    print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
-
-    # Видалення запису Jane
-    book.delete("Jane")
-
-    print("*"*50)
-    for name, record in book.data.items():
-        print(record)
-
-    maria_record = Record("maria")
-    maria_record.add_phone("1555555505")
-    maria_record.add_phone("9999999999")
-    maria_record.add_birthday("9.03.2005")
-    book.add_record(maria_record)
-    maria = book.find("maria")
-    print("+"*50)
-    print(maria_record.show_birthday)
-    print("+"*50)
+@input_error
+def show_phone(args, contacts):
+    name = args[0]
+    record_obj = contacts.find(name)
+    if record_obj:
+        phones = ",".join(record_obj.phones)
+        return f"{phones}"
     
-    maria.edit_phone("1555555505", "4444444444" )
-    print("*"*50)
-    for name, record in book.data.items():
-        print(record)
+@input_error
+def add_birthday(args, contacts):
+    name, birthday = args
+    record_obj = contacts.find(name)
+    if record_obj:
+        record_obj.add_birthday(birthday)
+        return "birthday added"
+    return "contact noy found"
+
+@input_error
+def show_birthday(args, contacts):
+    name = args[0]
+    record_obj = contacts.find(name)
+    if record_obj:
+        return f"{record_obj.birthday}"
+    return "contact not found"
+
+@input_error
+def birthdays(args, contacts):
+    res = ""
+    for day_week, names in contacts.birthdays().items():
+        res += f"{day_week}: {', '.join(names)} \n"
+    return res
 
 
-    book.add_record(maria_record)
-    print(book.birthdays())
+def main():
+    contacts = AddressBook()
+    print("Welcome to the assistant bot!")
+    while True:
+        user_input = input("Enter a command: ")
+        command, *args = parse_input(user_input)
+
+        if command in ["close", "exit"]:
+            print("Good bye!")
+            break
+        elif command == "hello":
+            print("How can I help you?")
+        elif command == "add":
+            print(add_contact(args, contacts))
+        elif command == "all":
+            print(show_all(args, contacts))
+        elif command == "change":
+            print(change_contact(args, contacts))
+        elif command == "phone":
+            print(show_phone(args, contacts))
+        elif command == "birthday":
+            print(add_birthday(args, contacts))
+        elif command == "show-birthday":
+            print(show_birthday(args, contacts))
+        elif command == "show-all-birthdays":
+            print(birthdays(args, contacts))
+        else:
+            print("Invalid command.")
+
+
+if __name__ == "__main__":
+    main()
